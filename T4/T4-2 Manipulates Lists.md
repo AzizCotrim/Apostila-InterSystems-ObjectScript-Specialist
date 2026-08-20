@@ -1387,14 +1387,19 @@ ClassMethod ParseQuoted(line As %String, separator As %String = ",") As %List
     set inQuotes = 0
     set len = $LENGTH(line)
 
-    for i = 1:1:len {
+    // WHILE, not FOR: this loop needs to advance TWO positions when it
+    // finds a doubled quote, and changing the control variable of a
+    // counted FOR is asking for trouble (chapter 17).
+    set i = 0
+    while i < len {
+        set i = i + 1
         set ch = $EXTRACT(line, i)
 
         if ch = """" {
             // a doubled quote inside a quoted field is a literal quote
             if inQuotes, $EXTRACT(line, i + 1) = """" {
                 set field = field_""""
-                set i = i + 1
+                set i = i + 1              // consumes the second quote
                 continue
             }
             set inQuotes = 'inQuotes
@@ -1504,7 +1509,7 @@ LABSTUDY>DO ##class(LabStudy.Demo.List4).Demo()
 
 - **O teste de ida e volta usa um dado realista brasileiro**: `"13,5"` com vírgula decimal. Esse é exatamente o caso que quebra importações de CSV no Brasil todo dia. A lista original tinha 3 elementos e voltou com 4.
 - **`ParseQuoted` implementa a regra real do CSV**: aspas delimitam campos, e aspas duplicadas dentro de um campo entre aspas representam uma aspa literal. É por isso que o formato CSV "de verdade" é mais complicado do que `$LISTFROMSTRING` — e por isso vale a pena converter para lista **assim que possível** e nunca mais voltar.
-- **A alteração de `i` dentro do laço `for`** (no tratamento da aspa duplicada) merece atenção: o ObjectScript permite, mas é uma prática que exige cuidado, porque o laço com passo definido pode se comportar de forma inesperada em algumas construções. Aqui funciona porque avançamos exatamente um caractere já consumido.
+- **O laço é `WHILE`, e não `FOR` contado, e isso é deliberado.** O analisador precisa avançar **duas** posições quando encontra uma aspa duplicada. Fazer isso alterando a variável de controle de um `for i = 1:1:n` é apostar num comportamento que o Capítulo 17 recomenda expressamente não usar — e que torna o laço difícil de raciocinar. Com `while`, o avanço é explícito: `set i = i + 1` no início de cada volta, e um segundo incremento quando a aspa dupla é consumida. **Quando o passo do laço não é constante, `WHILE` é a construção correta.**
 - **`set inQuotes = 'inQuotes`** alterna o valor com o operador de negação. É idiomático e compacto.
 - **`ImportBlock` usa `$CHAR(10)` como separador de linhas** e `$ZSTRIP` para remover retorno de carro e espaços. Arquivos vindos de sistemas diferentes trazem terminadores diferentes, e limpar na entrada evita campos com lixo invisível no fim.
 - **A linha 2 do bloco tinha `"92,0"` entre aspas e foi preservada corretamente.** É a prova de que `ParseQuoted` resolve o caso que `ParseLine` quebra.
@@ -1643,8 +1648,11 @@ ClassMethod ToDisplay(list As %List, separator As %String = " | ") As %String
 ClassMethod FromCsv(line As %String, separator As %String = ",") As %List
 {
     set result = "", field = "", inQuotes = 0
+    set len = $LENGTH(line), i = 0
 
-    for i = 1:1:$LENGTH(line) {
+    // WHILE, because a doubled quote makes the loop advance two positions
+    while i < len {
+        set i = i + 1
         set ch = $EXTRACT(line, i)
 
         if ch = """" {

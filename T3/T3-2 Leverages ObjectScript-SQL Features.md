@@ -1246,7 +1246,7 @@ ARGS: 1
 - **Imprimir a consulta gerada** é uma prática de desenvolvimento excelente. Você vê exatamente o que foi montado, sem adivinhar. Em produção, isso viraria uma entrada de log condicional, não um `write`.
 - **`stmt.%SelectMode = 1`** faz as datas e valores saírem em formato ODBC. Sem isso, `BirthDate`, se estivesse no `SELECT`, sairia como número.
 - **`%IsDefined` combinado com `'= ""`** cobre os dois casos: campo ausente e campo presente mas vazio. Um formulário de busca costuma enviar campos vazios em vez de omiti-los.
-- **`filters.minAge * 365.25`** é uma aproximação deliberada e imprecisa em anos bissextos. Está aqui para não desviar o foco do exercício; um cálculo correto de idade viria com as funções de data do Capítulo 12.
+- **`filters.minAge * 365.25`** é uma aproximação deliberada e imprecisa em anos bissextos. Está aqui para não desviar o foco do exercício; um cálculo correto de idade viria com as funções de data do Capítulo 16.
 
 ---
 
@@ -1304,7 +1304,17 @@ ClassMethod AgeOf(id As %String) As %Integer [ SqlProc, SqlName = PATIENT_AGE ]
         quit ""
     }
 
-    quit $ZDATE($HOROLOG, 4) - $ZDATE(birth, 4)
+    set today = $ZDATE($HOROLOG, 3)          // AAAA-MM-DD
+    set start = $ZDATE(birth, 3)
+
+    set years = $PIECE(today, "-", 1) - $PIECE(start, "-", 1)
+
+    // MM-DD as a 4 digit number: "08-19" -> 819
+    if +$TRANSLATE($EXTRACT(today, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(start, 6, 10), "-", "") {
+        set years = years - 1
+    }
+
+    quit years
 }
 
 /// Runs both queries from ObjectScript.

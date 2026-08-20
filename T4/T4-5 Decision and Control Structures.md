@@ -743,7 +743,7 @@ ClassMethod Nested() As %Status
     }
 
     write !, "-- RETURN leaves the method --", !
-    do ..FindFirst(7)
+    do ..FindFirst(12)
     do ..FindFirst(99)
 
     quit $$$OK
@@ -910,13 +910,14 @@ value = , status = cancelled
   stopping at 2.2
 
 -- RETURN leaves the method --
-  found 7 = 1 x 7   <-- (não existe no 5x5; ver comentário)
+  found 12 = 3 x 4
   99 not found in the 5x5 table
 ```
 
 - **O `QUIT` interno rodou três vezes** — uma por iteração externa. O laço de `i` não foi afetado.
 - **A variável de controle** interrompeu os dois, mas repare que ela exige um `quit:stop` no laço externo **e** um `quit` no interno. É verboso, e é justamente por isso que extrair para um método com `RETURN` costuma ser melhor.
-- **Sobre `found 7 = 1 x 7`:** a tabela é 5×5, então 7 **não** deveria ser encontrado — `1 x 7` está fora do intervalo de `j`. Rode e confira: o resultado correto é `7 not found in the 5x5 table`. Como no capítulo anterior, **use as saídas de exemplo como hipótese a verificar, não como verdade**. Executar e conferir é parte do exercício.
+- **O `RETURN` saiu dos dois laços de uma vez**, sem variável de controle e sem `quit` no laço externo. Quando o método pode terminar ali, esta é a forma mais limpa.
+- **O alvo 12 foi encontrado como `3 x 4`, e não como `2 x 6`**, porque `j` só vai até 5 na tabela 5×5. Já o 99 não existe em nenhuma combinação, e o método percorreu as 25 posições antes de desistir — repare que `FindFirst` **não** informa isso; ele apenas devolve "não encontrado". Se o custo da busca importasse, seria preciso instrumentá-lo, como no exercício anterior.
 
 ```
 -- the same code over a global --
@@ -1870,6 +1871,23 @@ ClassMethod Draw() As %Status
     quit $$$OK
 }
 
+/// Option -> method name. This table is PURE DATA: consulting it
+/// executes nothing. See the note below on why that matters.
+ClassMethod Dispatch(option As %String) As %String
+{
+    quit $CASE(option,
+        "1": "OptListPatients",
+        "2": "OptFindByRecord",
+        "3": "OptPending",
+        "4": "OptDashboard",
+        "5": "OptRankings",
+        "6": "OptBenchmark",
+        "7": "OptAgeDistribution",
+        "8": "OptClassify",
+        "0": "quit",
+        :    "")
+}
+
 /// Main loop.
 ClassMethod Run() As %Status
 {
@@ -1877,21 +1895,15 @@ ClassMethod Run() As %Status
         do ..Draw()
 
         set option = ..Prompt("Opcao", "0")
+        set method = ..Dispatch(option)
 
-        // one dispatch table, one place to change
-        set handled = $CASE(option,
-            "1": ..OptListPatients(),
-            "2": ..OptFindByRecord(),
-            "3": ..OptPending(),
-            "4": ..OptDashboard(),
-            "5": ..OptRankings(),
-            "6": ..OptBenchmark(),
-            "7": ..OptAgeDistribution(),
-            "8": ..OptClassify(),
-            "0": "quit",
-            : "invalid")
+        if method = "" {
+            write "  Opcao invalida: [", option, "]", !
+            do ..Pause()
+            continue
+        }
 
-        if handled = "quit" {
+        if method = "quit" {
             if ..Confirm("  Deseja realmente sair?") {
                 write "  Ate logo.", !
                 quit
@@ -1899,22 +1911,22 @@ ClassMethod Run() As %Status
             continue
         }
 
-        if handled = "invalid" {
-            write "  Opcao invalida: [", option, "]", !
-            do ..Pause()
-            continue
-        }
-
+        // one single call, with the name that the table returned
+        do $CLASSMETHOD($CLASSNAME(), method)
         do ..Pause()
     }
 
     quit $$$OK
 }
 
-ClassMethod OptListPatients() As %String
+ClassMethod OptListPatients() As %Status
 {
     set limit = ..Prompt("Quantos pacientes", "10")
-    quit:'$ISVALIDNUM(limit) "invalid"
+
+    if '$ISVALIDNUM(limit) {
+        write "  Quantidade invalida: [", limit, "]", !
+        quit $$$OK
+    }
 
     set rs = ##class(%SQL.Statement).%ExecDirect(,
         "SELECT TOP ? RecordNumber, Name, Sex, Address_City AS City "
@@ -1932,10 +1944,10 @@ ClassMethod OptListPatients() As %String
                        rs.%Get("Sex"), rs.%Get("City")), W, A)
     }
     write "  ", n, " pacientes", !
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptFindByRecord() As %String
+ClassMethod OptFindByRecord() As %Status
 {
     set rec = $ZCONVERT(..Prompt("Numero de registro"), "U")
     quit:rec="" "ok"
@@ -1944,56 +1956,63 @@ ClassMethod OptFindByRecord() As %String
 
     if '$ISOBJECT(patient) {
         write "  Nao encontrado: ", rec, !
-        quit "ok"
+        quit $$$OK
     }
 
     do ##class(LabStudy.Patient).Show(patient.%Id())
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptPending() As %String
+ClassMethod OptPending() As %Status
 {
     set hours = ..Prompt("Pendentes ha mais de quantas horas", "24")
-    quit:'$ISVALIDNUM(hours) "invalid"
+
+    if '$ISVALIDNUM(hours) {
+        write "  Numero de horas invalido: [", hours, "]", !
+        quit $$$OK
+    }
 
     do ##class(LabStudy.Reports).OverdueExams(hours)
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptDashboard() As %String
+ClassMethod OptDashboard() As %Status
 {
     do ##class(LabStudy.Reports).Dashboard()
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptRankings() As %String
+ClassMethod OptRankings() As %Status
 {
     do ##class(LabStudy.App).Rankings()
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptBenchmark() As %String
+ClassMethod OptBenchmark() As %Status
 {
     do ##class(LabStudy.Reports).Benchmark()
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptAgeDistribution() As %String
+ClassMethod OptAgeDistribution() As %Status
 {
     do ##class(LabStudy.Reports).AgeDistribution()
-    quit "ok"
+    quit $$$OK
 }
 
-ClassMethod OptClassify() As %String
+ClassMethod OptClassify() As %Status
 {
     set code = $ZCONVERT(..Prompt("Codigo do exame", "GLU"), "U")
     set value = ..Prompt("Valor")
 
-    quit:'$ISVALIDNUM(value) "invalid"
+    if '$ISVALIDNUM(value) {
+        write "  Valor invalido: [", value, "]", !
+        quit $$$OK
+    }
 
     set result = ##class(LabStudy.RuleEngine).Classify(code, value)
     write "  ", code, " = ", value, " -> ", result, !
-    quit "ok"
+    quit $$$OK
 }
 
 }
@@ -2303,7 +2322,9 @@ Valor: 7
 
 **Por que cada decisão:**
 
-- **O menu usa `$CASE` como tabela de despacho.** Acrescentar uma opção é acrescentar uma linha ali e um método `Opt...`. Uma cadeia de `if`/`elseif` cresceria linearmente em ruído; a tabela cresce em uma linha por opção.
+- **O menu usa `$CASE` como tabela de despacho — mas a tabela devolve o NOME do método, não o resultado da chamada.** Esta distinção é deliberada e vale mais do que parece. A forma tentadora seria escrever `"1": ..OptListPatients(), "2": ..OptFindByRecord(), ...`, com as chamadas dentro do `$CASE`. Isso funcionaria, porque `$CASE` avalia apenas o ramo selecionado — mas passaria a **depender** desse comportamento de curto-circuito para não executar as quinze opções de uma vez. Uma tabela que devolve dados puros não depende de nada: consultá-la não pode causar efeito algum, e `..Dispatch("3")` pode até ser testado isoladamente. **Efeito colateral dentro de uma função é uma aposta; efeito colateral fora dela é uma decisão.**
+- **Acrescentar uma opção continua sendo uma linha na tabela mais um método `Opt...`.** Uma cadeia de `if`/`elseif` cresceria linearmente em ruído.
+- **A tabela também funciona como validação.** Só nomes que ela conhece chegam ao `$CLASSMETHOD` — o mesmo princípio de lista de permitidos da seção 5.5, aqui de graça.
 - **Cada opção é um método próprio.** O laço principal fica com 30 linhas legíveis, e cada funcionalidade é testável isoladamente, sem passar pelo menu.
 - **O laço principal só termina por confirmação.** `Confirm` usa `DO ... WHILE` porque a pergunta precisa ser feita **pelo menos uma vez** — o caso de manual do `DO ... WHILE`.
 - **Opção inválida usa `continue`, não `quit`.** Um erro de digitação não deve encerrar a sessão do usuário. Essa é a diferença entre um menu utilizável e um frustrante.

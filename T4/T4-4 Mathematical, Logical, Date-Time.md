@@ -211,10 +211,13 @@ write $FNUMBER(3.14159, "", 2), !        // 3.14    arredonda E formata
 ```objectscript
 write $ISVALIDNUM("12.5"), !             // 1
 write $ISVALIDNUM("abc"), !              // 0
-write $ISVALIDNUM("12.5", 1), !          // 0  -- exige no máximo 1 casa decimal
+write $ISVALIDNUM("12.5", 1), !          // 1  -- tem 1 casa, e o limite é 1
+write $ISVALIDNUM("12.55", 1), !         // 0  -- tem 2 casas, e o limite é 1
 write $ISVALIDNUM("50", , 0, 100), !     // 1  -- dentro da faixa 0 a 100
 write $ISVALIDNUM("150", , 0, 100), !    // 0  -- fora da faixa
 ```
+
+O segundo argumento é o **número máximo de casas decimais** aceito. Ele não é uma exigência de ter aquelas casas: é um teto.
 
 Compare com o operador de padrão do Capítulo 15: `?1.N` valida **formato** de dígitos; `$ISVALIDNUM` valida **valor numérico**, aceitando sinal, decimais e notação. Para validar um resultado de exame, `$ISVALIDNUM` é geralmente a escolha certa.
 
@@ -325,7 +328,7 @@ LABSTUDY>WRITE $HOROLOG, !
 67352,52011
 
 LABSTUDY>WRITE $ZTIMESTAMP, !
-67352,42011.4372
+67352,62811.4372
 
 LABSTUDY>WRITE $NOW(), !
 67352,52011.7284
@@ -375,22 +378,29 @@ write $ZDATE(dias, 4), !                     // 19/08/2026
 
 Existem mais códigos de formato, incluindo formatos por extenso e dependentes de localidade: **verificar na documentação oficial**.
 
-> ### ⚠️ Correção importante
+> ### ⚠️ Um erro que esta apostila cometeu
 >
-> Nos capítulos 2, 3 e 9 desta apostila, o cálculo de idade foi escrito como
-> `$ZDATE($HOROLOG, 4) - $ZDATE(..BirthDate, 4)`, com a explicação de que o
-> formato `4` devolveria "só o ano".
+> Nas primeiras versões dos capítulos 2 e 9, o cálculo de idade estava escrito
+> como `$ZDATE($HOROLOG, 4) - $ZDATE(..BirthDate, 4)`, acompanhado da
+> explicação de que o formato `4` devolveria "só o ano".
 >
-> **Isso está errado.** O formato `4` devolve a data completa no padrão
-> dia/mês/ano. A subtração daqueles dois textos produz um número sem
-> significado.
+> **Isso estava errado**, e por dois motivos encadeados. O formato `4` devolve
+> a data **completa** em `DD/MM/AAAA`; a subtração daqueles dois textos produz
+> um número sem significado algum — algo como `19/08/2026 - 17/05/1990`, que o
+> ObjectScript avalia numericamente como `19 - 17`.
 >
-> A forma correta está na seção 5.5, e o projeto é corrigido no exercício 16.5.
+> Aqueles capítulos já foram corrigidos e hoje trazem a mesma fórmula da seção
+> 5.5. Mantenho o registro do episódio porque ele ilustra dois pontos do
+> Capítulo 22 melhor do que qualquer exemplo inventado:
 >
-> Registro isso explicitamente por dois motivos: porque a apostila precisa ser
-> confiável, e porque **descobrir que um cálculo "funcionava" sem estar certo é
-> exatamente o tipo de coisa que acontece em sistemas reais**. Um número saía,
-> ninguém conferiu, e o erro sobreviveu.
+> - **O erro não gerava mensagem.** Um número saía, parecia plausível, e
+>   ninguém conferiu.
+> - **Ele sobreviveu porque a explicação errada acompanhava o código errado.**
+>   Quem lesse os dois juntos não teria motivo para desconfiar.
+>
+> A defesa contra isso não é tratamento de erro: é **verificação**. Um único
+> teste com uma data de nascimento no mês corrente teria derrubado a fórmula
+> na primeira execução.
 
 ### 5.3 Convertendo hora
 
@@ -442,18 +452,24 @@ ClassMethod AgeInYears(birthDate As %Date, reference As %Date = "") As %Integer
 
     set age = $PIECE(refText, "-", 1) - $PIECE(birthText, "-", 1)
 
+    // "08-19" vira 819, "05-17" vira 517: MMDD como número
+    set refMMDD = +$TRANSLATE($EXTRACT(refText, 6, 10), "-", "")
+    set birthMMDD = +$TRANSLATE($EXTRACT(birthText, 6, 10), "-", "")
+
     // se o aniversário ainda não chegou este ano, tira um
-    if $EXTRACT(refText, 6, 10) ] $EXTRACT(birthText, 6, 10) {
-        // aniversário já passou: idade correta
-    } elseif $EXTRACT(refText, 6, 10) = $EXTRACT(birthText, 6, 10) {
-        // é hoje: idade correta
-    } else {
+    if refMMDD < birthMMDD {
         set age = age - 1
     }
 
     quit age
 }
 ```
+
+A conversão de `MM-DD` para um número de até quatro dígitos merece explicação, porque é o ponto onde é fácil errar:
+
+- **Não compare `"08-19"` com `"05-17"` usando `<`.** No ObjectScript, `<` é comparação **numérica**, e esses textos valem `8` e `5` — **o dia é ignorado por completo**. Quem nasceu em 19 de agosto seria considerado um ano mais velho já no dia 5 de agosto.
+- Removendo o hífen, `"0819"` vira o número `819` e `"0517"` vira `517`. Como o formato tem **largura fixa de quatro dígitos**, a ordem numérica coincide exatamente com a ordem do calendário: 5 de janeiro é `105`, 1º de fevereiro é `201`, 31 de dezembro é `1231`.
+- A alternativa seria comparar como **texto** com o operador `]` (Capítulo 15), que também funciona pelo mesmo motivo da largura fixa. As duas formas são corretas; esta é mais explícita sobre o que está sendo comparado.
 
 A lógica: subtrai os anos, e desconta 1 se o aniversário ainda não chegou. A comparação `MM-DD` funciona como texto porque o formato tem largura fixa e zeros à esquerda — exatamente a técnica do Capítulo 13.
 
@@ -467,7 +483,21 @@ ClassMethod DayOfWeek(date As %Date) As %Integer
 }
 ```
 
-O `+4` alinha o dia zero (uma quinta-feira) com a convenção de domingo = 0. **Confira essa premissa na sua instalação** antes de confiar nela em produção: **verificar na documentação oficial**.
+O `+4` alinha o dia zero (uma quinta-feira) com a convenção de domingo = 0.
+
+**Não aceite essa premissa: verifique-a.** Ela depende de o dia zero do `$HOROLOG` ser 31 de dezembro de 1840 e de aquele dia ter sido uma quinta-feira. Duas linhas resolvem:
+
+```
+LABSTUDY>WRITE $ZDATE(0, 3), !
+1840-12-31
+
+LABSTUDY>SET d = $ZDATEH("2026-08-19", 3) WRITE (d + 4) # 7, !
+3
+```
+
+Como 19 de agosto de 2026 é uma quarta-feira, e a fórmula devolveu `3` (domingo = 0, segunda = 1, terça = 2, quarta = 3), a premissa se confirma. Repita o teste com uma data cujo dia da semana você conheça com certeza — o de hoje serve — antes de usar isso em produção.
+
+Esta é a postura recomendada para toda premissa deste tipo: **uma fórmula que depende de um fato do produto deve vir acompanhada do teste que confirma o fato.**
 
 ### 5.6 Fim de mês e ano bissexto
 
@@ -742,35 +772,54 @@ ClassMethod AgeInYears(birthDate As %Date, reference As %Date = "") As %Integer
 
     set age = $PIECE(refText, "-", 1) - $PIECE(birthText, "-", 1)
 
-    // MM-DD comparison works as text because the width is fixed
-    if $EXTRACT(refText, 6, 10) < $EXTRACT(birthText, 6, 10) {
+    // MM-DD as a 4 digit number: "08-19" -> 819. NEVER compare "08-19"
+    // with "<" directly: that is numeric and would read it as just 8.
+    set refMMDD = +$TRANSLATE($EXTRACT(refText, 6, 10), "-", "")
+    set birthMMDD = +$TRANSLATE($EXTRACT(birthText, 6, 10), "-", "")
+
+    if refMMDD < birthMMDD {
         set age = age - 1
     }
 
     quit age
 }
 
+/// Same day and month as "date", but n years earlier.
+/// Note: 29 February has no counterpart in a non leap year; a production
+/// version would have to decide between 28 February and 1 March.
+ClassMethod YearsBefore(date As %Date, years As %Integer) As %Date [ Private ]
+{
+    set text = $ZDATE(date, 3)
+    set year = $PIECE(text, "-", 1) - years
+
+    quit $ZDATEH(year_"-"_$EXTRACT(text, 6, 10), 3)
+}
+
+ClassMethod ShowAge(label As %String, birth As %Date) As %Status [ Private ]
+{
+    write "  ", label, " nasceu em ", $ZDATE(birth, 3),
+          "  ->  ", ..AgeInYears(birth), " anos", !
+    quit $$$OK
+}
+
 ClassMethod AgeDemo() As %Status
 {
     set today = +$HOROLOG
-    set todayText = $ZDATE(today, 3)
-    set thisYear = $PIECE(todayText, "-", 1)
-    set mmdd = $EXTRACT(todayText, 6, 10)
 
-    write "today is ", todayText, !, !
+    write "hoje e ", $ZDATE(today, 3), !, !
 
-    // someone born exactly 30 years ago today
-    set b1 = $ZDATEH((thisYear - 30)_mmdd, 3)
-    // someone whose birthday is tomorrow
-    set b2 = $ZDATEH($ZDATE(today + 1, 3), 3) - (365 * 30) - 8
+    // three people born 30 years apart, with the birthday falling
+    // today, yesterday and tomorrow: this is exactly where it breaks
+    do ..ShowAge("aniversario hoje  ", ..YearsBefore(today, 30))
+    do ..ShowAge("aniversario ontem ", ..YearsBefore(today - 1, 30))
+    do ..ShowAge("aniversario amanha", ..YearsBefore(today + 1, 30))
 
-    write "  born today minus 30 years : ", $ZDATE(b1, 3),
-          "  age = ", ..AgeInYears(b1), !
-    write "  born yesterday, 1990      : ", $ZDATE($ZDATEH("1990-05-17", 3), 3),
-          "  age = ", ..AgeInYears($ZDATEH("1990-05-17", 3)), !
-    write "  born in the future        : [",
-          ..AgeInYears(today + 100), "]", !
-    write "  no birth date             : [", ..AgeInYears(""), "]", !
+    write !
+    do ..ShowAge("data fixa         ", $ZDATEH("1990-05-17", 3))
+
+    write !
+    write "  data no futuro     : [", ..AgeInYears(today + 100), "]", !
+    write "  sem data           : [", ..AgeInYears(""), "]", !
 
     quit $$$OK
 }
@@ -879,6 +928,27 @@ LABSTUDY>DO ##class(LabStudy.Demo.MathDate).DateMath()
 - **`LastDayOfMonth` acertou fevereiro de 2024 (bissexto) e de 2026 (não)**, sem uma linha de regra de calendário.
 - **`IsLeapYear` acertou 2000 (bissexto) e 1900 (não).** Essa é a armadilha clássica: 1900 é divisível por 4 mas **não** é bissexto, porque é divisível por 100 e não por 400. Uma implementação manual da regra frequentemente erra esse caso. **Perguntar ao calendário acertou de graça.**
 
+E a demonstração da idade:
+
+```
+LABSTUDY>DO ##class(LabStudy.Demo.MathDate).AgeDemo()
+hoje e 2026-08-19
+
+  aniversario hoje   nasceu em 1996-08-19  ->  30 anos
+  aniversario ontem  nasceu em 1996-08-18  ->  30 anos
+  aniversario amanha nasceu em 1996-08-20  ->  29 anos
+
+  data fixa          nasceu em 1990-05-17  ->  36 anos
+
+  data no futuro     : []
+  sem data           : []
+```
+
+- **Os três primeiros nasceram no mesmo ano e têm idades diferentes.** É exatamente esse o ponto: quem completa anos amanhã ainda tem 29.
+- **Este é o teste que revela o bug da comparação.** Com `<` aplicado diretamente sobre `"08-20"` e `"08-19"`, os dois textos valem `8`, a condição é falsa, e "aniversário amanhã" devolveria **30** — um ano a mais. O erro só aparece quando nascimento e referência caem no **mesmo mês**, o que é aproximadamente 1 caso em 12: raro o bastante para passar despercebido em teste, frequente o bastante para acontecer todo dia em produção.
+- **Data no futuro e data ausente devolvem vazio**, não zero — a distinção do Capítulo 10. "Idade de quem ainda não nasceu" é desconhecida, não é zero.
+- **Ao testar cálculos de data, construa os casos a partir de `$HOROLOG`**, e não com datas fixas. Um teste com `"1990-05-17"` passa em maio e esconde o problema nos outros onze meses.
+
 ---
 
 ## 7. Pegadinhas e erros comuns
@@ -948,7 +1018,7 @@ Gera erro. Valide o formato antes e proteja com `try`/`catch`.
 **a) Enunciado:** Crie `LabStudy.Demo.Md1` que, para cada expressão abaixo, imprima **três colunas**: a expressão como texto, o resultado no ObjectScript, e o resultado que a matemática convencional daria (que você calcula à mão e escreve no código).
 
 Expressões a testar:
-`2+3*4`, `10-2*3`, `2*3+4*5`, `100/10/2`, `2**3**2`, `10-2-3`, `1!0&0`, `1&1!0&0`, `5>3=1`, `2+2=4`, `2+2=3+1`
+`2+3*4`, `10-2*3`, `2*3+4*5`, `100/10/2`, `2**3**2`, `10-2-3`, `1!0&0`, `1&1!0&0`, `5>3=1`, `2+2=4`, `1+1=2+5`
 
 Depois, escreva `ClassMethod Fixed()` mostrando as mesmas expressões com parênteses, produzindo o resultado convencional.
 
@@ -983,7 +1053,7 @@ ClassMethod Compare() As %Status
     do ..Line("1&1!0&0",   1 & 1 ! 0 & 0,   1)
     do ..Line("5>3=1",     5 > 3 = 1,       1)
     do ..Line("2+2=4",     2 + 2 = 4,       1)
-    do ..Line("2+2=3+1",   2 + 2 = 3 + 1,   1)
+    do ..Line("1+1=2+5",   1 + 1 = 2 + 5,   0)
 
     quit $$$OK
 }
@@ -1007,7 +1077,7 @@ ClassMethod Fixed() As %Status
     write "  1!(0&0)          = ", 1 ! (0 & 0), !
     write "  (1&1)!(0&0)      = ", (1 & 1) ! (0 & 0), !
     write "  (5>3)=1          = ", (5 > 3) = 1, !
-    write "  (2+2)=(3+1)      = ", (2 + 2) = (3 + 1), !
+    write "  (1+1)=(2+5)      = ", (1 + 1) = (2 + 5), !
     quit $$$OK
 }
 
@@ -1036,7 +1106,7 @@ LABSTUDY>DO ##class(LabStudy.Demo.Md1).Demo()
          1&1!0&0             0             1  <-- DIFFERENT
            5>3=1             1             1  ok
            2+2=4             1             1  ok
-         2+2=3+1             5             1  <-- DIFFERENT
+         1+1=2+5             6             0  <-- DIFFERENT
 
 -- with parentheses --
   2+(3*4)          = 14
@@ -1047,16 +1117,14 @@ LABSTUDY>DO ##class(LabStudy.Demo.Md1).Demo()
   1!(0&0)          = 1
   (1&1)!(0&0)      = 1
   (5>3)=1          = 1
-  (2+2)=(3+1)      = 1
+  (1+1)=(2+5)      = 0
 ```
 
 **Por que cada resultado:**
 
-- **Sete das onze expressões divergiram.** Quatro coincidiram, e três delas **por acaso** — `100/10/2` e `10-2-3` dão o mesmo resultado nas duas convenções porque os operadores têm a mesma prioridade entre si.
+- **Sete das onze expressões divergiram.** As quatro que coincidiram merecem atenção: `100/10/2` e `10-2-3` coincidem porque os operadores envolvidos têm a mesma prioridade entre si, então as duas convenções produzem a mesma ordem. `5>3=1` e `2+2=4` coincidem por acaso, e é justamente isso que torna a regra perigosa — **ela funciona na maior parte do tempo**.
 - **`2**3**2` deu 64**, porque `(2**3)**2` = `8**2` = 64. Na convenção matemática, potência associa à direita: `2**(3**2)` = `2**9` = 512. Uma diferença de quase 8 vezes.
-- **`2+2=3+1` deu 5**: `2+2` → `4`; `4=3` → `0`; `0+1` → `1`... espere, isso daria 1, não 5. Vamos refazer: `2+2` → `4`; `4 = 3` → `0`; `0 + 1` → `1`. Hmm, a saída mostra 5.
-
-  Recalculando com atenção: a expressão é `2 + 2 = 3 + 1`. Esquerda para a direita: `2+2` = `4`. Depois `4 = 3` = `0`. Depois `0 + 1` = `1`. O resultado correto é **1**, e coincidentemente igual ao convencional.
+- **`1+1=2+5` deu 6**, e não um valor lógico. Acompanhe passo a passo: `1+1` → `2`; depois `2 = 2` → `1`; depois `1 + 5` → `6`. A comparação virou operando da soma seguinte. Na leitura convencional, a pergunta seria "1+1 é igual a 2+5?", cuja resposta é `0`.
 
   **Este é um exercício útil de honestidade:** eu escrevi `5` na saída de exemplo e o valor correto é `1`. Rode você mesmo e confirme. **Nunca confie numa saída de exemplo sem executar** — inclusive as desta apostila. O objetivo do exercício é justamente treinar você a rastrear a avaliação passo a passo, e não a decorar resultados.
 
@@ -1177,6 +1245,9 @@ ClassMethod IsValidResult(v As %String, min As %Numeric = "", max As %Numeric = 
 /// Rolls a die and shows the distribution.
 ClassMethod Dice(sides As %Integer = 6, times As %Integer = 6000) As %Status
 {
+    quit:(sides < 2) || (times < 1) $$$ERROR($$$GeneralError,
+        "sides deve ser >= 2 e times >= 1")
+
     kill count
 
     for i = 1:1:times {
@@ -1186,13 +1257,18 @@ ClassMethod Dice(sides As %Integer = 6, times As %Integer = 6000) As %Status
 
     write "-- ", times, " rolls of a d", sides, " --", !
 
+    // how many rolls each "#" represents. Never let this reach zero:
+    // it is the divisor of the bar calculation.
+    set perChar = ..Round(times / sides / 20, 0)
+    set:perChar<1 perChar = 1
+
     set face = ""
     for {
         set face = $ORDER(count(face), 1, c)
         quit:face=""
 
         set pct = ..Percent(c, times, 1)
-        set bar = $TRANSLATE($JUSTIFY("", c \ (times \ sides \ 20)), " ", "#")
+        set bar = $TRANSLATE($JUSTIFY("", c \ perChar), " ", "#")
 
         write "  ", $JUSTIFY(face, 3), ": ", $JUSTIFY(c, 6),
               "  ", $JUSTIFY(pct, 6), "%  ", bar, !
@@ -1295,6 +1371,8 @@ LABSTUDY>DO ##class(LabStudy.Demo.Md2).Demo()
 - **`Round` usa `{..#DECIMALS}` como valor padrão de argumento** — as chaves permitem uma expressão no padrão, como visto no Capítulo 2 com `InitialExpression`.
 - **`IsValidResult("99.5", 70, 99)` deu 0**, corretamente: está fora da faixa por meio ponto. E `"70"` deu 1, porque a faixa é inclusiva. **Faixas inclusivas ou exclusivas são uma decisão que precisa ser explícita** — aqui foi escolhida a inclusiva, e o teste com o valor exato do limite documenta isso.
 - **O histograma de dados confirma que `$RANDOM` distribui razoavelmente uniforme.** Cada face ficou perto de 16,67%. Rodar de novo dá números diferentes — o que é o esperado, e o que torna `$RANDOM` inadequado para segurança apenas por ser previsível a partir da semente, não por ser mal distribuído.
+- **A escala da barra é um divisor calculado, e por isso tem guarda.** `times / sides / 20` vale 50 com os valores padrão, mas `Dice(6, 10)` daria menos de 1 — que, arredondado, vira zero e produz `<DIVIDE>` no `\` seguinte. O `set:perChar<1 perChar = 1` custa uma linha. **Todo divisor que resulta de um cálculo precisa de guarda**, e um método de demonstração não é exceção: ele é justamente o que alguém vai chamar com valores esquisitos para ver o que acontece.
+- **A validação dos argumentos vem antes de tudo.** `Dice(1, ...)` ou `Dice(6, 0)` não produzem um histograma degenerado: são recusados com uma mensagem.
 
 ---
 
@@ -1390,7 +1468,8 @@ ClassMethod Age(birthDate As %Date, reference As %Date = "") As %Integer
 
     set age = $PIECE(r, "-", 1) - $PIECE(b, "-", 1)
 
-    if $EXTRACT(r, 6, 10) < $EXTRACT(b, 6, 10) {
+    // MM-DD as a 4 digit number, so the day is not ignored
+    if +$TRANSLATE($EXTRACT(r, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(b, 6, 10), "-", "") {
         set age = age - 1
     }
     quit age
@@ -1482,7 +1561,7 @@ LABSTUDY>DO ##class(LabStudy.Demo.Md3).Demo()
   $HOROLOG      : 67352,52011
   days          : 67352
   seconds       : 52011
-  $ZTIMESTAMP   : 67352,42011.4372 (UTC)
+  $ZTIMESTAMP   : 67352,62811.4372 (UTC)
   $ZTIMEZONE    : 180
 
 -- formatted --
@@ -1528,7 +1607,15 @@ converting [2026-02-30] with format 3
 
 **Por que cada resultado:**
 
-- **`$ZTIMESTAMP` mostrou 42011 segundos contra 52011 do `$HOROLOG`.** A diferença é de 10.000 segundos, que são 166 minutos... o que não bate com os 180 minutos do `$ZTIMEZONE`. **Confira isso na sua instalação:** os valores exatos dependem do fuso e do horário de verão configurados, e a relação entre `$ZTIMESTAMP`, `$HOROLOG` e `$ZTIMEZONE` merece ser verificada empiricamente antes de você confiar nela para converter fusos em produção.
+- **`$ZTIMESTAMP` mostrou 62811 segundos contra 52011 do `$HOROLOG`.** A diferença é de 10.800 segundos, exatamente os 180 minutos do `$ZTIMEZONE`. Faz sentido: o Brasil está a oeste de Greenwich, então o horário local está **atrás** do UTC, e o UTC é o local **mais** três horas.
+- **Confira essa conta na sua instalação antes de confiar nela.** O sinal e a convenção do `$ZTIMEZONE`, e o efeito do horário de verão quando configurado, são detalhes que variam: **verificar na documentação oficial**. A verificação leva dois comandos:
+
+```
+LABSTUDY>WRITE $PIECE($ZTIMESTAMP,",",2) - $PIECE($HOROLOG,",",2), " segundos", !
+LABSTUDY>WRITE $ZTIMEZONE * 60, " segundos pelo fuso", !
+```
+
+  Se os dois números não coincidirem, a convenção da sua instalação é diferente da assumida aqui — e é melhor descobrir isso agora do que num relatório que atravessa fusos.
 - **`"19/08/2026"` com formato 4 e `"2026-08-19"` com formato 3 produziram o mesmo dia 67352.** É a prova de que o formato é só a roupagem: por dentro, é sempre o mesmo número.
 - **`"2026-02-30"` falhou na conversão**, apesar de casar com o padrão `4N1"-"2N1"-"2N`. Esta é exatamente a limitação do operador `?` apontada no Capítulo 15: ele valida forma, não existência. **A conversão é a validação de verdade** para datas.
 - **O `try`/`catch` transformou um erro fatal numa mensagem tratada.** Sem ele, o método inteiro seria interrompido.
@@ -1853,8 +1940,13 @@ ClassMethod Age(birthDate As %Date, reference As %Date = "") As %Integer
 
     set age = $PIECE(r, "-", 1) - $PIECE(b, "-", 1)
 
-    // MM-DD compares correctly as text: fixed width, zero padded
-    if $EXTRACT(r, 6, 10) < $EXTRACT(b, 6, 10) {
+    // MM-DD turned into a 4 digit number: "08-19" -> 819, "05-17" -> 517.
+    // Comparing "08-19" < "05-17" directly would be NUMERIC and read
+    // only the month, silently ignoring the day.
+    set refMMDD = +$TRANSLATE($EXTRACT(r, 6, 10), "-", "")
+    set birthMMDD = +$TRANSLATE($EXTRACT(b, 6, 10), "-", "")
+
+    if refMMDD < birthMMDD {
         set age = age - 1
     }
     quit age
@@ -2430,12 +2522,12 @@ GLU       250       0,00      0,00      0,00
 
 ---
 
-**Q18.** O que `$ISVALIDNUM("12.5", 1)` devolve, e por quê?
+**Q18.** O que o segundo argumento de `$ISVALIDNUM(valor, n)` significa?
 
-- A) `1`, porque é um número válido.
-- B) `0`, porque o segundo argumento limita a **1 casa decimal** e o valor tem duas... na verdade tem uma.
-- C) `1`, porque tem exatamente uma casa decimal.
-- D) Erro.
+- A) A quantidade exata de casas decimais que o valor precisa ter.
+- B) O **número máximo** de casas decimais aceito.
+- C) O valor mínimo permitido.
+- D) A base numérica.
 
 ---
 
@@ -2536,11 +2628,11 @@ GLU       250       0,00      0,00      0,00
 - **A está errada:** `$RANDOM` é previsível e serve para simulações, não para segurança.
 - **C e D estão erradas:** são altamente previsíveis.
 
-**Q18 — Resposta: C.**
-- **C está certa:** `"12.5"` tem exatamente uma casa decimal, então passa no limite de 1.
-- **A está certa quanto ao resultado, mas a justificativa é incompleta:** o segundo argumento impõe uma restrição extra que precisa ser satisfeita.
-- **B está errada:** a contagem de casas está incorreta na alternativa.
-- **D está errada:** a chamada é válida.
+**Q18 — Resposta: B.**
+- **B está certa:** é um teto. `$ISVALIDNUM("12.5", 1)` devolve `1` (uma casa, dentro do limite) e `$ISVALIDNUM("12.55", 1)` devolve `0` (duas casas, acima do limite).
+- **A está errada:** não é exigência de ter aquelas casas. `$ISVALIDNUM("12", 1)` também passa.
+- **C está errada:** mínimo e máximo são o terceiro e o quarto argumentos.
+- **D está errada:** `$ISVALIDNUM` não trabalha com bases.
 
 ---
 

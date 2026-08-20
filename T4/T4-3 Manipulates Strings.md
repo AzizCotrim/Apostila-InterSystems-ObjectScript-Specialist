@@ -277,10 +277,10 @@ write $REPLACE("a.b.c", ".", "-"), !                     // a-b-c
 
 write $TRANSLATE("a.b,c;d", ".,;", "---"), !             // a-b-c-d
 write $TRANSLATE("a.b,c;d", ".,;", ""), !                // abcd  -- remove
-write $TRANSLATE("hello", "el", "ip"), !                 // hippo? não: hippo tem 5 letras
+write $TRANSLATE("hello", "el", "ip"), !                 // hippo
 ```
 
-Vamos conferir a última: `"hello"` com `e→i` e `l→p` vira `"hippo"`. Correto.
+Acompanhe a última letra a letra, porque ela mostra bem o mecanismo: `h` não está na lista de origem e passa intacto; `e` vira `i`; os dois `l` viram `p` cada um; `o` passa intacto. Resultado: `hippo`. **Cada caractere é decidido isoladamente** — a função nunca olha para a sequência `"el"` como uma unidade.
 
 `$REPLACE` aceita argumentos adicionais para controlar a partir de onde começar, quantas substituições fazer e se a busca diferencia maiúsculas. Os argumentos exatos variam por versão: **verificar na documentação oficial**.
 
@@ -1475,7 +1475,15 @@ LABSTUDY>DO ##class(LabStudy.Demo.Str3).Demo()
 
 **Por que cada decisão:**
 
-- **`OnlyDigits` usa `$ZSTRIP` com o terceiro argumento**, que lista os caracteres a **preservar** — removendo tudo (`*E`) exceto os dígitos. A alternativa com `$TRANSLATE` exigiria listar todos os caracteres possíveis a remover, o que é impraticável.
+- **`OnlyDigits` usa `$ZSTRIP` com o argumento de caracteres a preservar** — removendo tudo (`*E`) **exceto** os dígitos. A alternativa com `$TRANSLATE` exigiria listar todos os caracteres possíveis a remover, o que é impraticável.
+- **Repare na vírgula dupla:** `$ZSTRIP(text, "*E", , "0123456789")`. O argumento vazio no meio é o de caracteres a **remover**, que aqui não é usado; a lista de dígitos vai na posição seguinte, a de caracteres a **preservar**. Trocar as duas posições produz um método que devolve sempre vazio, sem erro nenhum — um erro silencioso clássico. **Confirme a ordem na sua versão antes de confiar:**
+
+```
+LABSTUDY>WRITE "[", $ZSTRIP("(17) 99999-8888", "*E", , "0123456789"), "]", !
+[17999998888]
+```
+
+  Se a saída vier vazia ou inalterada, a assinatura da sua versão é diferente: **verificar na documentação oficial** ou usar `DO ##class(%SYSTEM.Util).Help()` para conferir.
 - **`NormalizeSpaces` usa um `while` com `$REPLACE`.** Uma passagem só não basta: `"a    b"` com quatro espaços vira `"a  b"` numa passagem e `"a b"` na segunda. Este é um caso em que a solução ingênua de uma passagem **parece** funcionar nos testes com dois espaços e falha com quatro.
 - **`ProperName` mantém as preposições em minúsculas, exceto na primeira posição.** Veja `"de paula"` virando `"De Paula"`: a primeira palavra é capitalizada mesmo sendo preposição, porque um nome não começa com minúscula. Esse é o tipo de regra que só aparece quando se testa com dados reais.
 - **`ProperName` usa `$LISTFIND` sobre uma lista construída de um parâmetro.** A lista de palavras fica num `Parameter`, num lugar só — se amanhã incluírem `"del"` ou `"van"`, muda-se uma linha.

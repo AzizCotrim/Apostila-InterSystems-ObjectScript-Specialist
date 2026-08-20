@@ -220,7 +220,7 @@ SET status = patient.%Save()
 - Repare: aqui usamos **`patient.%Save()`**, e não `##class(...)`. Por quê? Porque `%Save` é um **método de instância**: ele age **sobre um objeto específico**. Você não pode salvar "a classe"; você salva "este paciente".
 - O que ele devolve é um **`%Status`**, não uma OREF. Também cai na prova.
 - Se der certo, o objeto passa a existir em disco e ganha um **ID**.
-- `%Save()` também **valida** o objeto antes de gravar: se uma propriedade obrigatória estiver vazia ou fora do formato, ele recusa e devolve um status de erro. As regras de validação são o assunto do Capítulo 1.2.
+- `%Save()` também **valida** o objeto antes de gravar: se uma propriedade obrigatória estiver vazia ou fora do formato, ele recusa e devolve um status de erro. As regras de validação são o assunto do Capítulo 2.
 
 ---
 
@@ -251,7 +251,7 @@ SET patient = ##class(LabStudy.Patient).%OpenId(id, concurrency, .status)
 ```
 
 - `id` — **obrigatório**. O identificador do objeto.
-- `concurrency` — **opcional**. O nível de bloqueio a usar ao abrir. Tratamos disso no Capítulo 2.1, junto com transações e travas.
+- `concurrency` — **opcional**. O nível de bloqueio a usar ao abrir. Tratamos disso no Capítulo 5, junto com transações e travas.
 - `.status` — **opcional**. Repare no **ponto antes do nome**. Esse ponto significa "passe a variável **por referência**", ou seja: *"IRIS, escreva o resultado dentro desta minha variável"*. Depois da chamada, `status` conterá o motivo caso a abertura falhe. É a forma correta de descobrir **por que** não abriu.
 
 ---
@@ -306,7 +306,7 @@ IF $$$ISERR(status) { DO $SYSTEM.Status.DisplayError(status) }
 
 Aquele `$SYSTEM` é uma variável especial do sistema (lembra do cifrão do Capítulo 0) que dá acesso a um conjunto de utilitários do IRIS. Vamos usá-la bastante.
 
-O `%Status` completo é assunto do Capítulo 5.2. Aqui basta você adquirir o hábito: **guardou o retorno, conferiu o retorno.**
+O `%Status` completo é assunto do Capítulo 21. Aqui basta você adquirir o hábito: **guardou o retorno, conferiu o retorno.**
 
 ---
 
@@ -604,7 +604,7 @@ SET p = ##class(LabStudy.Patient).%OpenId(id)
 IF '$ISOBJECT(p) { WRITE "not found", ! QUIT }
 ```
 
-O apóstrofo `'` antes de `$ISOBJECT` significa **negação**: "se **não** for objeto". Vamos formalizar os operadores lógicos no Capítulo 4.4.
+O apóstrofo `'` antes de `$ISOBJECT` significa **negação**: "se **não** for objeto". Vamos formalizar os operadores lógicos no Capítulo 16.
 
 **5) Chamar método de instância pela classe, ou o contrário.**
 - `##class(LabStudy.Sample).%Save()` está **errado**: não existe "salvar a classe".
@@ -752,7 +752,7 @@ LABSTUDY>WRITE $ISOBJECT(gone), !
 **Por que cada decisão:**
 
 - `%KillExtent()` no início limpa o que ficou do exercício anterior, para os IDs saírem previsíveis. **Atenção:** mesmo assim, se você já tinha gravado objetos antes, os IDs novos podem continuar a sequência antiga em vez de recomeçar do 1 — o contador de IDs é independente dos dados. Se os seus números saírem diferentes, está certo do mesmo jeito.
-- `FOR i=1:1:3 { ... }` — laço que repete três vezes, com `i` valendo 1, 2 e 3. A estrutura completa de laços é o Capítulo 4.5; aqui use como receita.
+- `FOR i=1:1:3 { ... }` — laço que repete três vezes, com `i` valendo 1, 2 e 3. A estrutura completa de laços é o Capítulo 17; aqui use como receita.
 - `"note "_i` — o sublinhado cola o texto com o número, formando `note 1`, `note 2`, `note 3`.
 - `WRITE $ISOBJECT(second)` antes de usar `second.Note` — este é o hábito que evita `<INVALID OREF>`. Primeiro confirme que veio objeto, depois use.
 - A última dupla de comandos mostra o comportamento silencioso do `%OpenId()`: ID inexistente devolve `0` em `$ISOBJECT`, sem erro nenhum.
@@ -881,7 +881,7 @@ small circle r=2.5
 **Por que cada decisão:**
 
 - `[ Abstract ]` entre colchetes é a palavra-chave de classe. Colchetes vêm **depois** do `Extends` e **antes** da chave de abertura.
-- O `%New()` da abstrata devolve OREF nula. `WRITE s = ""` devolvendo `1` prova que o retorno foi mesmo a string vazia. (No ObjectScript, o sinal `=` dentro de uma expressão é **comparação**, não atribuição — quem atribui é o comando `SET`. Isso é assunto do Capítulo 4.4, mas fica registrado desde já.)
+- O `%New()` da abstrata devolve OREF nula. `WRITE s = ""` devolvendo `1` prova que o retorno foi mesmo a string vazia. (No ObjectScript, o sinal `=` dentro de uma expressão é **comparação**, não atribuição — quem atribui é o comando `SET`. Isso é assunto do Capítulo 16, mas fica registrado desde já.)
 - `Circle` herda `Label` de `Shape` mesmo `Shape` sendo abstrata. Abstrata não significa vazia: significa "não instanciável diretamente".
 
 ---
@@ -897,10 +897,10 @@ Chegou a hora de dar o primeiro passo real no sistema de laboratório.
 3. Um `ClassMethod` chamado `Create` que recebe nome, data de nascimento e número de registro, cria o objeto, grava e **devolve o ID** se deu certo, ou vazio se falhou (imprimindo o erro na tela).
 4. Um `ClassMethod` chamado `Show` que recebe um ID, abre o paciente e imprime seus dados de forma legível — ou avisa que não encontrou.
 
-Depois, atualize `LabStudy.App`: mude o parâmetro `VERSION` para `"0.2"` e acrescente um `ClassMethod` chamado `Status` que imprime quantos pacientes existem, usando `%ExistsId` num laço de 1 até 20 (uma forma provisória e ingênua — vamos fazer isso direito com SQL no Capítulo 4.6).
+Depois, atualize `LabStudy.App`: mude o parâmetro `VERSION` para `"0.2"` e acrescente um `ClassMethod` chamado `Status` que imprime quantos pacientes existem, usando `%ExistsId` num laço de 1 até 20 (uma forma provisória e ingênua — vamos fazer isso direito com SQL no Capítulo 18).
 
 **b) Dica:**
-- `%Date` é o tipo de data do IRIS. Internamente ele guarda um número, não um texto. Para converter de `"1990-05-17"` para o formato interno, use `$ZDATEH("1990-05-17", 3)`. Para converter de volta e mostrar na tela, `$ZDATE(valor, 3)`. O `3` é o código do formato ano-mês-dia. Datas são o Capítulo 4.4; aqui use como receita.
+- `%Date` é o tipo de data do IRIS. Internamente ele guarda um número, não um texto. Para converter de `"1990-05-17"` para o formato interno, use `$ZDATEH("1990-05-17", 3)`. Para converter de volta e mostrar na tela, `$ZDATE(valor, 3)`. O `3` é o código do formato ano-mês-dia. Datas são o Capítulo 16; aqui use como receita.
 - Para devolver vazio em caso de falha, `QUIT ""`.
 - Para imprimir o erro, `DO $SYSTEM.Status.DisplayError(sc)`.
 
@@ -1053,12 +1053,12 @@ Patients found (ids 1..20): 1
 **Por que cada decisão:**
 
 - **`..%New()` em vez de `##class(LabStudy.Patient).%New()`.** Estamos **dentro** da própria classe `LabStudy.Patient`, e os dois pontos significam "da minha própria classe". Além de mais curto, isso é mais robusto: se um dia essa classe for herdada, `..%New()` cria um objeto da **classe correta**, e não sempre um `Patient`.
-- **`Create` devolve `%String` e não `%Status`.** Aqui a informação útil para quem chama é o **ID**. Devolver vazio como sinal de falha é um padrão simples e legítimo. Note que essa é uma escolha de projeto: em código mais rigoroso você devolveria o `%Status` e receberia o ID por referência. Vamos ver essa técnica no Capítulo 1.3.
+- **`Create` devolve `%String` e não `%Status`.** Aqui a informação útil para quem chama é o **ID**. Devolver vazio como sinal de falha é um padrão simples e legítimo. Note que essa é uma escolha de projeto: em código mais rigoroso você devolveria o `%Status` e receberia o ID por referência. Vamos ver essa técnica no Capítulo 3.
 - **`if $$$ISERR(sc) { ... quit "" }` — saída antecipada.** Tratar o erro e sair logo deixa o caminho feliz do método sem aninhamento. É um hábito que paga dividendos quando os métodos crescem.
 - **`$ZDATEH` na entrada, `$ZDATE` na saída.** O `%Date` guarda um número interno. Se você fizesse `SET patient.BirthDate = "1990-05-17"`, o `%Save()` recusaria na validação, porque o texto não é uma data no formato interno. Converter na entrada e na saída é a forma correta.
 - **`'$ISOBJECT(patient)` antes de usar.** Sem essa linha, `Show(999)` daria `<INVALID OREF>` em vez de uma mensagem clara. Esta é a diferença entre um sistema que quebra e um sistema que explica.
 - **`Show` devolve `$$$OK` mesmo quando não encontra.** "Não encontrado" não é um erro do sistema; é um resultado normal de uma consulta. Erro seria o banco estar fora do ar. Essa distinção importa quando você começa a encadear chamadas.
-- **`Status` com laço até 20 é propositalmente ingênuo.** Ele funciona, ensina `%ExistsId` e é honesto sobre sua limitação no comentário. No Capítulo 4.6 vamos substituí-lo por uma consulta SQL de verdade — e você vai sentir na pele a diferença.
+- **`Status` com laço até 20 é propositalmente ingênuo.** Ele funciona, ensina `%ExistsId` e é honesto sobre sua limitação no comentário. No Capítulo 18 vamos substituí-lo por uma consulta SQL de verdade — e você vai sentir na pele a diferença.
 - **`SqlTableName = PATIENT`.** Além de exercitar a palavra-chave, deixa a tabela com um nome em maiúsculas, no estilo que muitos bancos usam. Confira no Portal: **System Explorer → SQL** e rode `SELECT * FROM LabStudy.PATIENT`.
 
 ---
@@ -1218,7 +1218,7 @@ O que o número `5` significa?
 - **C está certa:** `%SerialObject` existe para agrupar campos que são gravados **dentro** de um objeto persistente que os contém, sem ID nem tabela próprios.
 - **A está errada:** `%Persistent` daria ao endereço ID e tabela próprios, que é exatamente o que não se quer.
 - **B está errada:** `%RegisteredObject` não é gravado em disco de forma alguma.
-- **D está errada:** `%Library.DynamicObject` serve para estruturas JSON dinâmicas, assunto do Capítulo 1.4.
+- **D está errada:** `%Library.DynamicObject` serve para estruturas JSON dinâmicas, assunto do Capítulo 4.
 
 **Q5 — Resposta: B.**
 - **B está certa:** o método é silencioso. Devolve `""` e cabe a você testar com `$ISOBJECT`.

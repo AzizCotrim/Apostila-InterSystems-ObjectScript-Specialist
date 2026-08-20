@@ -3,6 +3,15 @@
 
 > Último tópico do domínio **T3 — IRIS Features**. Aqui você aprende a **medir** antes de mexer, a reconhecer os padrões que matam o desempenho, e a usar as ferramentas que o IRIS oferece para consertá-los.
 
+> **Sobre os números deste capítulo.** As saídas de tempo, contagem e
+> distribuição mostradas aqui vieram de uma execução específica, numa máquina
+> específica, com um conjunto de dados específico. **Os seus números serão
+> diferentes** — e isso é o esperado. O que deve se repetir são as
+> **proporções** e as **conclusões**: se uma abordagem aparece aqui vinte vezes
+> mais rápida que outra, essa relação deve se manter, ainda que os valores
+> absolutos mudem. Se não se mantiver, vale investigar: ou o seu ambiente tem
+> uma característica interessante, ou o teste não está medindo o que parece.
+
 ---
 
 ## 1. O que você vai saber fazer ao terminar

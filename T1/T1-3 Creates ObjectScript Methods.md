@@ -284,7 +284,7 @@ LABSTUDY>WRITE ##class(X).Sum(), !
 0
 ```
 
-Um cuidado: se um argumento não for passado no meio da lista (por exemplo `Sum(10, , 30)`), aquele subscrito fica **indefinido**, e usá-lo direto causa `<UNDEFINED>`. Para proteger, use `$GET(values(i))`, que devolve vazio em vez de dar erro. A função `$GET` é do Capítulo 4.1, mas guarde a receita.
+Um cuidado: se um argumento não for passado no meio da lista (por exemplo `Sum(10, , 30)`), aquele subscrito fica **indefinido**, e usá-lo direto causa `<UNDEFINED>`. Para proteger, use `$GET(values(i))`, que devolve vazio em vez de dar erro. A função `$GET` é do Capítulo 13, mas guarde a receita.
 
 ### 3.5 Escopo de variáveis dentro de um método
 
@@ -369,7 +369,7 @@ ClassMethod CountAll() As %Integer [ SqlProc, SqlName = COUNT_ALL ]
 - **`CodeMode = expression`** — o corpo do método é **uma única expressão**, sem `quit`. O IRIS devolve o resultado dela. É mais enxuto para métodos triviais. Os outros valores de `CodeMode` são `code` (o padrão) e `objectgenerator` (geração de código na compilação, tema avançado).
 - **`SqlProc`** — expõe o método como **procedimento armazenado** do SQL, podendo ser chamado de uma consulta. **`SqlName`** dá a ele um nome diferente no mundo SQL.
 - **`ProcedureBlock`** e **`PublicList`** — vistos acima.
-- **`ReturnResultsets`** — declara que o método devolve conjuntos de resultados para o cliente. Assunto do Capítulo 4.6.
+- **`ReturnResultsets`** — declara que o método devolve conjuntos de resultados para o cliente. Assunto do Capítulo 18.
 
 *(Observação: use apenas letras do alfabeto latino em nomes de método. O exemplo acima está apenas ilustrando a posição dos colchetes.)*
 
@@ -492,15 +492,17 @@ LABSTUDY>SET methodName = "Show"
 LABSTUDY>DO $CLASSMETHOD(className, methodName, 1)
 
 LABSTUDY>SET p = ##class(LabStudy.Patient).%OpenId(1)
-LABSTUDY>WRITE $METHOD(p, "GetLabel"), !
+LABSTUDY>WRITE $METHOD(p, "%Id"), !
+1
 LABSTUDY>WRITE $PROPERTY(p, "Name"), !
+Maria Silva
 ```
 
 - **`$CLASSMETHOD(classe, metodo, args...)`** — chama um **método de classe** cujo nome está numa variável.
-- **`$METHOD(oref, metodo, args...)`** — chama um **método de instância** sobre uma OREF.
+- **`$METHOD(oref, metodo, args...)`** — chama um **método de instância** sobre uma OREF. No exemplo usamos `%Id`, que toda classe persistente herda — assim você pode executar a linha sem precisar ter criado nada antes.
 - **`$PROPERTY(oref, propriedade)`** — lê uma propriedade cujo nome está numa variável. Também serve para escrever: `SET $PROPERTY(p, "Name") = "Ana"`.
 
-Isso é poderoso, mas custa desempenho e tira a verificação do compilador. Use quando o nome for realmente dinâmico, nunca por preguiça.
+Isso é poderoso, mas custa desempenho e tira a verificação do compilador. Use quando o nome for realmente dinâmico, nunca por preguiça. E há um detalhe que só aparece em execução: **se o nome estiver errado, o erro é `<METHOD DOES NOT EXIST>`, e ele só acontece quando aquela linha roda.** O Capítulo 17 mostra como validar o nome antes de despachar.
 
 ---
 
@@ -600,11 +602,11 @@ Comentando as decisões:
 
 - **`%OnNew(owner)`** permite `%New("Maria")`, encurtando o código de quem usa. O `if owner '= ""` evita sobrescrever com vazio quando ninguém passa nada. O apóstrofo é a negação: `'=` significa "diferente de".
 - **`%OnBeforeSave`** normaliza o nome com `$ZSTRIP(texto, "<>W")` — essa função remove caracteres; `<` significa "do início", `>` significa "do fim" e `W` significa "espaços em branco". Junto: tira os espaços das duas pontas. O `if insert` mostra na prática a diferença entre inserção e atualização.
-- **`%OnValidateObject`** expressa uma regra que **nenhum parâmetro de propriedade conseguiria**: ela envolve duas propriedades ao mesmo tempo. Esse é exatamente o critério para escolher entre declarar na propriedade e escrever no callback. O `&&` é o "e" lógico (Capítulo 4.4).
+- **`%OnValidateObject`** expressa uma regra que **nenhum parâmetro de propriedade conseguiria**: ela envolve duas propriedades ao mesmo tempo. Esse é exatamente o critério para escolher entre declarar na propriedade e escrever no callback. O `&&` é o "e" lógico (Capítulo 16).
 - **`Deposit`** é um `Method` porque deposita **nesta** conta. Ele devolve `%Status` porque pode recusar.
 - **`Label`** usa `CodeMode = expression`: o corpo é uma expressão só, sem `quit`, sem chaves internas. Repare que a expressão fica na coluna 1 — nesse modo, o corpo é literalmente uma expressão, não um bloco de comandos.
 - **`Summary`** é um `ClassMethod` que devolve **três informações**: a contagem pelo `QUIT` e mais duas por parâmetros `Output`. É o padrão idiomático do IRIS.
-- Dentro de `Summary` usamos `$ORDER` sobre a global de dados da classe para percorrer os IDs. `$ORDER` é o assunto principal do Capítulo 4.1; aqui, entenda apenas que ele caminha pelos subscritos existentes, um a um. O nome `^LabStudy.Demo.AccountD` é a global onde o IRIS grava os dados dessa classe — o sufixo `D` é a convenção do armazenamento padrão. (No Capítulo 4.6 substituiremos isso por SQL, que é a forma correta e portável.)
+- Dentro de `Summary` usamos `$ORDER` sobre a global de dados da classe para percorrer os IDs. `$ORDER` é o assunto principal do Capítulo 13; aqui, entenda apenas que ele caminha pelos subscritos existentes, um a um. O nome `^LabStudy.Demo.AccountD` é a global onde o IRIS grava os dados dessa classe — o sufixo `D` é a convenção do armazenamento padrão. (No Capítulo 18 substituiremos isso por SQL, que é a forma correta e portável.)
 - `continue:'$ISOBJECT(account)` — o `CONTINUE` com pós-condicional pula para a próxima volta do laço se a condição for verdadeira. Aqui: "se não abriu, pule".
 
 ### 4.1 Usando no Terminal
@@ -715,7 +717,7 @@ ClassMethod Test(value As %String)
 }
 ```
 
-`$DATA(variavel)` devolve `0` se a variável não existe. É o assunto do Capítulo 4.1, mas a receita é essa.
+`$DATA(variavel)` devolve `0` se a variável não existe. É o assunto do Capítulo 13, mas a receita é essa.
 
 ### 5.5 Método como procedimento armazenado do SQL
 
@@ -894,7 +896,7 @@ WRITE ##class(LabStudy.Demo.Counter).Broken()
 
 Depois, chame o método **duas vezes**: a primeira **sem** os pontos e a segunda **com** os pontos, e compare os resultados.
 
-**b) Dica:** Para separar a string, use `$LENGTH(texto, ",")` para saber quantos pedaços existem e `$PIECE(texto, ",", i)` para pegar o pedaço `i`. Essas funções são o Capítulo 4.3; aqui use como receita.
+**b) Dica:** Para separar a string, use `$LENGTH(texto, ",")` para saber quantos pedaços existem e `$PIECE(texto, ",", i)` para pegar o pedaço `i`. Essas funções são o Capítulo 15; aqui use como receita.
 
 **c) Como testar:** Na chamada sem pontos, `average` e `biggest` devem continuar indefinidas ou vazias e `callCount` não deve mudar. Na chamada com pontos, tudo deve vir preenchido.
 
@@ -1152,7 +1154,7 @@ LABSTUDY>SET sc = t.%Save()
 - **`%OnNew` rodou sozinho** no `%New()`, e ninguém o chamou. Esse é o ponto do capítulo sobre callbacks.
 - **Na tentativa inválida, só o callback 2 apareceu.** A validação recusou antes de tudo o mais. Compare com o exemplo da seção 4, onde a mensagem do `%OnBeforeSave` apareceu apesar da falha — a diferença está em **qual** validação recusou e em que momento. Isso mostra por que confiar em mensagens de tela para saber se gravou é péssima ideia: confie no `%Status`.
 - **`insert=1` na primeira gravação e `insert=0` na segunda** — exatamente o comportamento documentado, e o que permite tratar inserção e atualização de forma diferente.
-- **`$ZCONVERT(texto, "U")`** — o `"U"` significa *upper*. Existem também `"L"` (minúsculas) e outras conversões. Detalhes no Capítulo 4.3.
+- **`$ZCONVERT(texto, "U")`** — o `"U"` significa *upper*. Existem também `"L"` (minúsculas) e outras conversões. Detalhes no Capítulo 15.
 
 ---
 

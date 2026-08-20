@@ -533,7 +533,7 @@ Comentando as decisões:
 - **A segunda trava falhando libera a primeira.** Sair de um método deixando travas presas é um vazamento tão sério quanto vazar memória.
 - **`set entryLevel = $TLEVEL` antes do `TSTART`.** Assim, se este método for chamado de dentro de outra transação, o rollback local não derruba a transação do chamador.
 - **A conferência de saldo está DENTRO da transação e DEPOIS das travas.** Essa ordem não é acidental: só depois de ter a trava é que o saldo lido é confiável, porque ninguém mais pode alterá-lo enquanto seguramos a plaquinha.
-- **`$INCREMENT(^BankLog)`** — essa função soma 1 a uma global e devolve o novo valor **de forma atômica**, sem precisar de trava. É a ferramenta certa para contadores. Voltaremos a ela no Capítulo 5.4 do projeto.
+- **`$INCREMENT(^BankLog)`** — essa função soma 1 a uma global e devolve o novo valor **de forma atômica**, sem precisar de trava. É a ferramenta certa para contadores. Voltaremos a ela no exercício 5.5, ao gerar números de registro.
 - **As travas são liberadas depois do `TCOMMIT`.** Como vimos na seção 3.5, dentro de uma transação a liberação ficaria pendente de qualquer forma. Liberar explicitamente depois deixa a intenção clara.
 
 ### 4.1 Usando no Terminal

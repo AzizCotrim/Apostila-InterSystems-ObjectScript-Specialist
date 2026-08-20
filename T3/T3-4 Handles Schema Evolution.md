@@ -313,6 +313,28 @@ set sc = ##class(LabStudy.Patient).%ValidateIndices()
 
 Compara os índices com os dados e aponta divergências. Em bases grandes é uma operação cara; rode em janela de manutenção. Os parâmetros disponíveis e o comportamento exato variam por versão: **verificar na documentação oficial**.
 
+> **Confirme os três nomes antes de escrever a sua rotina de manutenção.**
+> `%BuildIndices`, `%PurgeIndices` e `%ValidateIndices` são métodos herdados de
+> `%Persistent`, e a disponibilidade e a assinatura de cada um mudaram ao longo
+> das versões. A verificação leva uma linha por método:
+>
+> ```
+> LABSTUDY>WRITE ##class(%Dictionary.CompiledMethod).%ExistsId("LabStudy.Patient||%ValidateIndices"), !
+> 1
+> ```
+>
+> E, para ver a assinatura completa dos métodos herdados de `%Persistent`:
+>
+> ```
+> LABSTUDY>DO $SYSTEM.OBJ.ShowClass("%Library.Persistent")
+> ```
+>
+> O mesmo vale para `$SYSTEM.SQL.Stats.Table.GatherTableStats()`, da seção 3.4:
+> em versões anteriores a operação chamava-se *Tune Table* e era invocada por
+> outro caminho. Use `DO $SYSTEM.SQL.Help()` para listar o que existe na sua
+> instalação. **Uma rotina de manutenção que chama um método inexistente falha
+> exatamente quando você mais precisa dela.**
+
 ### 3.9 Evolução por DDL de SQL
 
 O IRIS aceita DDL padrão, e ela **altera a definição da classe**:
@@ -867,7 +889,7 @@ LABSTUDY>ZWRITE ^LabStudy.Demo.Ev1D(1)
 **Por que cada resultado:**
 
 - **O dado sobreviveu à remoção da propriedade.** A global continuou com `"TEMP-A"` no quinto elemento, apesar de a classe não conhecer mais aquele campo. Compilar não reescreve dados — este é o mesmo fato do exercício anterior, agora com consequência oposta.
-- **O SQL recusou a coluna** com `SQLCODE = -29`. A projeção SQL acompanha a definição da classe, não o conteúdo da global. Os dois divergiram, e só a global sabe a verdade.
+- **O SQL recusou a coluna**, com `SQLCODE` negativo e a mensagem indicando campo não encontrado. A projeção SQL acompanha a definição da classe, não o conteúdo da global. Os dois divergiram, e só a global sabe a verdade. *(O número exato do `SQLCODE` varia por versão e não vale a pena decorar — o que resolve é sempre `%Message`, como visto no Capítulo 9.)*
 - **Regravar o objeto limpou o resto.** O nó da linha 1 foi remontado a partir do mapa atual, que tem quatro posições. O quinto elemento simplesmente deixou de ser escrito. **Regravar é a forma de faxina.**
 - **As linhas 2, 3 e 4 continuam com o dado órfão** — porque ninguém as regravou. Numa base real, você teria uma mistura: linhas limpas e linhas com resíduo, dependendo de quem foi editado desde a mudança.
 - **E aqui está o risco da seção 3.1:** se agora você acrescentar uma propriedade nova e o compilador atribuir a ela a quinta posição, as linhas 2, 3 e 4 passarão a exibir `TEMP-B`, `TEMP-C` e `TEMP-D` nesse campo novo — dados que ninguém escreveu ali. Faça o teste na sua instalação e observe o que acontece; o comportamento pode variar por versão, e é exatamente por isso que a recomendação é **regravar tudo antes de acrescentar qualquer coisa depois de uma remoção**.

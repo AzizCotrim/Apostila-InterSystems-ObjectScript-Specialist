@@ -165,7 +165,7 @@ Leia: *"propriedade Name, do tipo texto com no máximo 100 caracteres, obrigató
 | `%Name` | nome de pessoa | Um `%String` com validação de formato "Sobrenome,Nome". |
 | `%Text` | texto longo, indexável por palavras | Para busca textual. |
 | `%Binary` | dados binários | |
-| `%List` | lista serializada | Estrutura interna do IRIS, vista no Capítulo 4.2. |
+| `%List` | lista serializada | Estrutura interna do IRIS, vista no Capítulo 14. |
 
 **Fixe este ponto:** `%String` sem `MAXLEN` aceita **50 caracteres**. Se você guardar 80, o `%Save()` falha com erro de validação. Isso é campeão de pegadinha.
 
@@ -186,7 +186,7 @@ Property Comment As %String(MAXLEN = 20, TRUNCATE = 1);
 - **`TRUNCATE`** — se valer `1`, em vez de dar erro por texto grande demais, o IRIS **corta** no `MAXLEN`. Cuidado: isso perde dados silenciosamente.
 - **`VALUELIST`** — a lista dos únicos valores permitidos. Sintaxe peculiar: **o primeiro caractere da string é o separador**. Em `",M,F"`, o separador é a vírgula, e os valores permitidos são `M` e `F`. Você poderia escrever `"|M|F"` e o separador seria a barra vertical.
 - **`DISPLAYLIST`** — os rótulos legíveis, na **mesma ordem** do `VALUELIST`. Serve para o valor lógico ser `M` e a exibição ser `Masculino`.
-- **`PATTERN`** — um padrão que o texto deve casar, usando a sintaxe de padrões do ObjectScript (vista no Capítulo 4.3).
+- **`PATTERN`** — um padrão que o texto deve casar, usando a sintaxe de padrões do ObjectScript (vista no Capítulo 15).
 
 Exemplo do par `VALUELIST` + `DISPLAYLIST`:
 
@@ -216,7 +216,7 @@ Property Notes As %String [ SqlFieldName = OBSERVATIONS ];
 - **`Private`** — só pode ser acessada de dentro da própria classe. De fora, tentar `obj.Secret` dá erro.
 - **`ReadOnly`** — só pode receber valor pelo `InitialExpression` ou de dentro da classe; não pode ser alterada de fora com `SET`.
 - **`SqlFieldName`** — muda o nome da **coluna** SQL sem mudar o nome da propriedade.
-- **`MultiDimensional`** — a propriedade se comporta como uma estrutura com subscritos (vista no Capítulo 4.1). Não é gravada em disco automaticamente e não aparece no SQL.
+- **`MultiDimensional`** — a propriedade se comporta como uma estrutura com subscritos (vista no Capítulo 13). Não é gravada em disco automaticamente e não aparece no SQL.
 
 Diferença que cai na prova: **`Calculated` não tem espaço em memória; `Transient` tem espaço em memória mas não em disco.**
 
@@ -240,7 +240,18 @@ Method AgeGet() As %Integer
     if ..BirthDate = "" {
         quit ""
     }
-    quit $ZDATE($HOROLOG, 4) - $ZDATE(..BirthDate, 4)
+
+    set today = $ZDATE($HOROLOG, 3)          // AAAA-MM-DD
+    set start = $ZDATE(..BirthDate, 3)
+
+    set years = $PIECE(today, "-", 1) - $PIECE(start, "-", 1)
+
+    // MM-DD as a 4 digit number: "08-19" -> 819
+    if +$TRANSLATE($EXTRACT(today, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(start, 6, 10), "-", "") {
+        set years = years - 1
+    }
+
+    quit years
 }
 ```
 
@@ -249,8 +260,12 @@ Explicando:
 - `Property Age As %Integer [ Calculated ]` — declara que existe uma propriedade `Age`, mas sem lugar para guardá-la.
 - `Method AgeGet() As %Integer` — o nome é **`Age` + `Get`**, sem espaço, exatamente assim. É essa convenção de nome que faz o IRIS entender que esse método é o leitor da propriedade.
 - `..BirthDate` — os dois pontos acessam a propriedade da própria instância.
-- `$ZDATE(valor, 4)` — converte uma data para o formato que devolve **só o ano**. Assim a subtração dá a diferença em anos. (É uma aproximação: não considera se o aniversário já passou. Vamos refinar no Capítulo 4.4, quando estudarmos datas a fundo.)
+- `$ZDATE(valor, 3)` — converte a data interna para o texto `AAAA-MM-DD`. O `3` é o formato ODBC, e é o que usaremos sempre dentro do sistema, porque é inequívoco. **Nenhum formato de `$ZDATE` devolve só o ano** — para obter o ano, extraímos o primeiro pedaço com `$PIECE`.
+- A subtração dos anos não basta: quem nasceu em dezembro ainda não fez aniversário em agosto. Por isso comparamos também o **mês e o dia**, e descontamos um ano quando o aniversário ainda não chegou.
+- `+$TRANSLATE($EXTRACT(hoje, 6, 10), "-", "")` transforma `"08-19"` no número `819`. Como o formato tem largura fixa de quatro dígitos, a ordem numérica coincide com a do calendário. **Cuidado:** comparar `"08-19" < "05-17"` diretamente seria uma comparação **numérica** que enxergaria apenas `8` e `5`, ignorando o dia por completo — um erro silencioso clássico.
 - Se `BirthDate` estiver vazia, devolvemos vazio em vez de calcular besteira.
+
+Datas são o assunto do **Capítulo 16**, onde este cálculo reaparece isolado numa classe própria. Aqui ele serve para mostrar o que uma propriedade `Calculated` permite fazer.
 
 De fora, `patient.Age` funciona exatamente como qualquer outra propriedade. Quem usa não sabe — nem precisa saber — que ela é calculada. Isso se chama encapsulamento, e é uma das grandes vantagens do modelo de objetos.
 
@@ -302,7 +317,7 @@ for {
 }
 ```
 
-Você começa com a chave vazia; a cada volta, o IRIS **atualiza a sua variável `key`** para a próxima chave e devolve o valor correspondente. Quando acabam as chaves, `key` volta a ser vazia e o laço termina. Aquele `quit:key=""` é um `QUIT` com **pós-condicional** — sai apenas se a condição for verdadeira. Pós-condicionais são o Capítulo 4.5; aqui use como receita.
+Você começa com a chave vazia; a cada volta, o IRIS **atualiza a sua variável `key`** para a próxima chave e devolve o valor correspondente. Quando acabam as chaves, `key` volta a ser vazia e o laço termina. Aquele `quit:key=""` é um `QUIT` com **pós-condicional** — sai apenas se a condição for verdadeira. Pós-condicionais são o Capítulo 17; aqui use como receita.
 
 ### 3.7 Objeto embutido (`%SerialObject`)
 
@@ -435,7 +450,7 @@ LABSTUDY>DO ##class(LabStudy.Patient).%BuildIndices()
 
 Isso percorre todos os objetos existentes e monta os cartões do fichário. Em tabelas grandes isso demora e deve ser planejado; em estudo, é instantâneo.
 
-Você pode reconstruir apenas alguns índices passando a lista deles: `%BuildIndices($LISTBUILD("NameIdx"))`. A construção de listas com `$LISTBUILD` é o Capítulo 4.2. Existem também parâmetros para controlar travamento e reconstrução em segundo plano — **verificar na documentação oficial** quando precisar disso em produção.
+Você pode reconstruir apenas alguns índices passando a lista deles: `%BuildIndices($LISTBUILD("NameIdx"))`. A construção de listas com `$LISTBUILD` é o Capítulo 14. Existem também parâmetros para controlar travamento e reconstrução em segundo plano — **verificar na documentação oficial** quando precisar disso em produção.
 
 ### 3.11 Validando sem gravar
 
@@ -494,7 +509,18 @@ Method AgeGet() As %Integer
     if ..BirthDate = "" {
         quit ""
     }
-    quit $ZDATE($HOROLOG, 4) - $ZDATE(..BirthDate, 4)
+
+    set today = $ZDATE($HOROLOG, 3)          // AAAA-MM-DD
+    set start = $ZDATE(..BirthDate, 3)
+
+    set years = $PIECE(today, "-", 1) - $PIECE(start, "-", 1)
+
+    // MM-DD as a 4 digit number: "08-19" -> 819
+    if +$TRANSLATE($EXTRACT(today, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(start, 6, 10), "-", "") {
+        set years = years - 1
+    }
+
+    quit years
 }
 
 }
@@ -596,7 +622,7 @@ O padrão dos nomes é `<Origem>To<Destino>`, com os três rostos sendo `Logical
 
 Atenção: os métodos de **exibição** (`Display`) dependem da configuração de idioma e formato da instância. O que sai como `05/17/1990` numa máquina pode sair como `17/05/1990` em outra. Já o formato **ODBC** é sempre `AAAA-MM-DD`. Por isso, **para trocar dados entre sistemas, use sempre ODBC.**
 
-As funções `$ZDATE` e `$ZDATEH` fazem o mesmo trabalho de forma mais direta, e são o que você usará no dia a dia. O código de formato `3` é o formato ODBC. Datas em detalhe: Capítulo 4.4.
+As funções `$ZDATE` e `$ZDATEH` fazem o mesmo trabalho de forma mais direta, e são o que você usará no dia a dia. O código de formato `3` é o formato ODBC. Datas em detalhe: Capítulo 16.
 
 ### 5.2 Uma propriedade também pode apontar para outro objeto
 
@@ -650,7 +676,7 @@ Dois cuidados:
 - Se a nova propriedade for `Required`, os objetos antigos **continuam gravados**, mas qualquer tentativa de regravá-los vai falhar até que o campo seja preenchido.
 - Se você acrescentar um índice, rode `%BuildIndices()` para os dados antigos entrarem no fichário.
 
-A evolução de esquema em profundidade é o Capítulo 3.4.
+A evolução de esquema em profundidade é o Capítulo 11.
 
 ### 5.6 Uma pergunta frequente: quantos índices criar?
 
@@ -839,7 +865,18 @@ Method YearsOfServiceGet() As %Integer
     if ..HireDate = "" {
         quit ""
     }
-    quit $ZDATE($HOROLOG, 4) - $ZDATE(..HireDate, 4)
+
+    set today = $ZDATE($HOROLOG, 3)          // AAAA-MM-DD
+    set start = $ZDATE(..HireDate, 3)
+
+    set years = $PIECE(today, "-", 1) - $PIECE(start, "-", 1)
+
+    // MM-DD as a 4 digit number: "08-19" -> 819
+    if +$TRANSLATE($EXTRACT(today, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(start, 6, 10), "-", "") {
+        set years = years - 1
+    }
+
+    quit years
 }
 
 }
@@ -1171,7 +1208,18 @@ Method AgeGet() As %Integer
     if ..BirthDate = "" {
         quit ""
     }
-    quit $ZDATE($HOROLOG, 4) - $ZDATE(..BirthDate, 4)
+
+    set today = $ZDATE($HOROLOG, 3)          // AAAA-MM-DD
+    set start = $ZDATE(..BirthDate, 3)
+
+    set years = $PIECE(today, "-", 1) - $PIECE(start, "-", 1)
+
+    // MM-DD as a 4 digit number: "08-19" -> 819
+    if +$TRANSLATE($EXTRACT(today, 6, 10), "-", "") < +$TRANSLATE($EXTRACT(start, 6, 10), "-", "") {
+        set years = years - 1
+    }
+
+    quit years
 }
 
 /// Creates and saves a patient. Returns the new id, or "" on failure.
@@ -1355,7 +1403,7 @@ Maria Silva
 - **`Age` calculada, `BirthDate` gravada.** Já discutido, mas vale repetir porque é o tipo de coisa que a prova cobra e a vida real castiga: guarde o fato, calcule a consequência.
 - **Relacionamento `one`/`many` em vez de `parent`/`children`.** Um exame é uma entidade com valor próprio — o laboratório quer poder listar "todos os exames de HGB de hoje" sem passar pelos pacientes. Se tivéssemos usado `parent`/`children`, os exames ficariam presos ao paciente e apagar o paciente apagaria os exames. Aqui isso seria arriscado: registro de exame costuma ter valor legal e histórico próprio.
 - **`Register` abre o paciente antes de criar o exame.** Atribuir `exam.Patient = patient` exige uma OREF de verdade, não um ID. E o teste com `$ISOBJECT` evita criar um exame órfão apontando para o nada.
-- **`Status` ainda é ingênuo.** Continua percorrendo IDs de 1 a 20. Isso é honesto e proposital: no Capítulo 4.6 você vai substituir isso por SQL e sentir a diferença.
+- **`Status` ainda é ingênuo.** Continua percorrendo IDs de 1 a 20. Isso é honesto e proposital: no Capítulo 18 você vai substituir isso por SQL e sentir a diferença.
 
 ---
 

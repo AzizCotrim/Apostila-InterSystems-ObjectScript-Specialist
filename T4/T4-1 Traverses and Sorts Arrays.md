@@ -3,6 +3,15 @@
 
 > Começa aqui o domínio **T4 — Functions & APIs**, o de **maior peso na prova**: 26 das 76 questões. Este primeiro tópico é a base de tudo: a estrutura de árvore que você já viu nas globais, agora usada como ferramenta de trabalho na memória — e a descoberta de que, no ObjectScript, **ordenar é gravar**.
 
+> **Sobre os números deste capítulo.** As saídas de tempo, contagem e
+> distribuição mostradas aqui vieram de uma execução específica, numa máquina
+> específica, com um conjunto de dados específico. **Os seus números serão
+> diferentes** — e isso é o esperado. O que deve se repetir são as
+> **proporções** e as **conclusões**: se uma abordagem aparece aqui vinte vezes
+> mais rápida que outra, essa relação deve se manter, ainda que os valores
+> absolutos mudem. Se não se mantiver, vale investigar: ou o seu ambiente tem
+> uma característica interessante, ou o teste não está medindo o que parece.
+
 ---
 
 ## 1. O que você vai saber fazer ao terminar

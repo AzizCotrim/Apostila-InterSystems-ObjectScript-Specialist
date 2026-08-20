@@ -283,7 +283,7 @@ while iterator.%GetNext(.key, .value) {
 - **`%GetIterator()`** devolve um objeto que sabe caminhar pelos elementos.
 - **`%GetNext(.key, .value)`** avança um passo. Devolve `1` enquanto houver elementos e `0` quando acabar. Repare nos **pontos**: `key` e `value` são parâmetros de saída — exatamente o que você aprendeu no Capítulo 3.
 - Num objeto, `key` é o nome do campo. Num vetor, `key` é o índice numérico (começando em zero).
-- **`while condição { ... }`** repete enquanto a condição for verdadeira. Estruturas de repetição são o Capítulo 8; aqui use como receita.
+- **`while condição { ... }`** repete enquanto a condição for verdadeira. Estruturas de repetição são o Capítulo 17; aqui use como receita.
 
 Uma versão com três argumentos também existe, trazendo o tipo:
 
@@ -521,7 +521,7 @@ Comentando as decisões:
 - **`%JSONFIELDNAME = "sender"`** — a propriedade se chama `Sender` (estilo do IRIS) mas sai como `sender` no JSON (estilo comum em APIs). Assim, cada mundo mantém a sua convenção.
 - **`%JSONINCLUDE = "none"`** em `InternalNote` — essa informação nunca sai nem entra por JSON. É a forma declarativa de proteger um campo interno.
 - **`ToSummary()` devolve um `%DynamicObject`** montado à mão. Repare que ele **não** é o objeto inteiro: é um resumo com campos escolhidos, inclusive um campo calculado (`bodySize`) que não é propriedade de nada. Estruturas dinâmicas brilham exatamente nesse tipo de tarefa.
-- **`$SELECT(condição: valor, 1: outroValor)`** — devolve o primeiro valor cuja condição for verdadeira. O `1` final significa "senão". É a forma compacta de um "se isto, aquilo; senão, aquilo outro". Detalhes no Capítulo 8.
+- **`$SELECT(condição: valor, 1: outroValor)`** — devolve o primeiro valor cuja condição for verdadeira. O `1` final significa "senão". É a forma compacta de um "se isto, aquilo; senão, aquilo outro". Detalhes no Capítulo 17.
 - **`AddParagraph` chama `MoveToEnd()` antes de escrever.** Se o objeto acabou de ser reaberto do disco, o cabeçote está no início; escrever sem mover sobrescreveria o começo. Hábito defensivo.
 - **`PrintBody` chama `Rewind()` antes de ler** e lê em pedaços de 32 caracteres. O tamanho pequeno é didático: mostra que o stream é lido aos poucos. Em código real você usaria pedaços maiores.
 - **`FromJSON` valida antes de usar.** `%IsDefined("sender")` garante que o campo obrigatório veio. `%Get("subject", "(no subject)")` fornece um padrão quando o campo é opcional. `%GetTypeOf("lines") = "array"` confirma que `lines` é mesmo um vetor antes de tentar iterar — se viesse um texto ali, iterar daria erro.
